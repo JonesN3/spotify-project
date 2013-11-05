@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <alloca.h> //??
 
 #include "audio.h"
 #include "queue.h"
@@ -20,6 +21,7 @@ static void on_end_of_track(sp_session *session);
 
 #define DEBUG 1
 int g_logged_in;
+sp_session *g_session;
 
 void debug(const char *format, ...)
 {
@@ -204,14 +206,72 @@ static sp_session_config spconfig = {
    NULL
 };
 
+int printPlaylists(sp_session *g_session) 
+{
+    printf("\n-- Print playlists --\n");
+    sp_playlistcontainer *pc = sp_session_playlistcontainer(g_session);
+    sp_playlist *playlist;
+    int i, j, level = 0; //for the for loop;
+    char name[200];
+
+    for(i = 0; i < sp_playlistcontainer_num_playlists(pc); ++i) {
+	switch (sp_playlistcontainer_playlist_type(pc, i)) {
+	case SP_PLAYLIST_TYPE_PLAYLIST: 
+	    playlist = sp_playlistcontainer_playlist(pc, i);
+	    printf("%d. %s\n", i, sp_playlist_name(playlist));
+	    break;
+	default:
+	    break;
+	}
+    }
+
+    handler(g_session);
+}
+
+int testPlaylistPlay(sp_session *g_session, int playlistIndex)
+{
+    sp_playlistcontainer *pc = sp_session_playlistcontainer(g_session);
+    sp_playlist *playlist;
+
+    playlist = sp_playlistcontainer_playlist(pc, playlistIndex);
+    printf("\n-- Playing first song in playlist: %s\n --", sp_playlist_name(playlist));
+    sp_track *track = sp_playlist_track(playlist, 0);
+    play(g_session, track);
+    
+    return 0;
+
+}
+
+void listSongsInPlaylist(sp_session *session, int index)
+{
+
+    sp_playlistcontainer *pc = sp_session_playlistcontainer(session);
+    sp_playlist *playlist;
+    sp_track *track;
+    int i;
+    
+    printf("test\n");
+    playlist = sp_playlistcontainer_playlist(pc, index);
+    printf("\n--Listing songs in playlist: %s--", sp_playlist_name(playlist));
+
+   for(i = 0; i < sp_playlist_num_tracks(playlist); ++i)
+   {
+	track = sp_playlist_track(playlist, i);
+	printf("\n%d. %s", i, sp_track_name(track));
+   }
+    
+   handler(session);
+
+}
+
 int logIn(void)
 {
    sp_error error;
-   sp_session *session;
+   sp_session *g_session;
    
    // create the spotify session
    spconfig.application_key_size = g_appkey_size;
-   error = sp_session_create(&spconfig, &session);
+   error = sp_session_create(&spconfig, &g_session);
    if (error != SP_ERROR_OK) {
       fprintf(stderr, "Error: unable to create spotify session: %s\n", sp_error_message(error));
       return 1;
@@ -220,9 +280,9 @@ int logIn(void)
    int next_timeout = 0;
 
    g_logged_in = 0;
-   sp_session_login(session, username, password, 0, NULL);
+   sp_session_login(g_session, username, password, 0, NULL);
 
-   handler(session);
+   handler(g_session);
    printf("success!\n");
    return 0;
 }
@@ -230,7 +290,7 @@ int logIn(void)
 int handler(sp_session *session)
 {
    int next_timeout = 0;
-   int selection;
+   int selection = 0;
    globPlaying = 0;
    selection = menu();
    if(selection == 0)
@@ -249,8 +309,12 @@ int handler(sp_session *session)
 		globPlaying = 1;
 	    }else if(selection == 2) {
 		printf("playlist play");
+		testPlaylistPlay(session, 1);
+		globPlaying = 1;
 	    } else if(selection == 3) {
-    	
+		printPlaylists(session);
+	    } else if(selection == 4) {
+		listSongsInPlaylist(session, 5);
 	    } else {
 		printf("\nerror: illegal menu choice\n");
 		handler(session);
@@ -262,11 +326,12 @@ int handler(sp_session *session)
 int menu(void)
 {
     int selected;
-    printf("\n--Menu--\n");
+    printf("\n\n--Menu--\n");
     printf("0: exit\n");
     printf("1: search\n");
-    printf("2: play playlist (not implemented) \n");
-    printf("3: list playlists (not implemented) \n");
+    printf("2: play playlist (semi implemented) \n");
+    printf("3: list playlists\n");
+    printf("4: list songs in playlist [n]\n");
     char input[100];
     fputs("> ", stdout);
     fgets(input, sizeof(input) - 1, stdin);
