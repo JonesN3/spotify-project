@@ -6,8 +6,8 @@
 
 #include "audio.h"
 #include "queue.h"
-#include <libspotify/api.h>
-#include </usr/local/include/libspotify/api.h>
+//#include <libspotify/api.h>
+#include </uio/hume/student-u56/espenaj/local/include/libspotify/api.h>
 
 extern const uint8_t g_appkey[];
 extern const size_t g_appkey_size;
@@ -15,7 +15,8 @@ extern const char *username;
 extern const char *password;
 
 static audio_fifo_t g_audiofifo;
-
+static int globPlaying;
+static void on_end_of_track(sp_session *session);
 
 #define DEBUG 1
 int g_logged_in;
@@ -38,11 +39,35 @@ void play(sp_session *session, sp_track *track)
         fprintf(stderr, "Error: %s\n", sp_error_message(error));
         exit(1);
     }
+
+    int max_width = 30;
+
+    sp_artist *artist = sp_track_artist(track, 0);
+    sp_album *album = sp_track_album(track);
+    int duration = sp_track_duration(track);
  
+    printf("Plying track\n");
     printf("\n");
-    printf("Playing...\n");
- 
+    printf("%s\n", sp_artist_name(artist));
+    printf("%s\n", sp_track_name(track));
+    printf("%s\n", sp_album_name(album));
+    printf("[%d:%d]\n", duration/60000, (duration/1000) % 60);
+    printf("\n\n");
     sp_session_player_play(session, 1);
+
+    char command;
+    char commandStr[100];
+
+    fputs("> ", stdout);
+    //command = fgetc(stdin);
+    //fgets(commandStr, sizeof(commandStr), stdin);
+    //printf("command: %c\n", command);
+
+    if(command == 'q') { 
+	printf("abort play\n");	
+	//sp_session_player_play(session, 0);
+	on_end_of_track(session);
+    }
 }
 
 static void on_search_complete(sp_search *search, void *userdata)
@@ -56,7 +81,9 @@ static void on_search_complete(sp_search *search, void *userdata)
  
     int num_tracks = sp_search_num_tracks(search);
     if (num_tracks == 0) {
-        printf("Sorry, couldn't find that track. =/\n");
+        printf("\nSorry, couldn't find that track.\n");
+	globPlaying = 0;
+	handler((sp_session*)userdata);
         exit(0);
     }
  
@@ -68,6 +95,7 @@ static void on_search_complete(sp_search *search, void *userdata)
 void run_search(sp_session *session)
 {
     // ask the user for an artist and track
+    printf("\n--Search and play--\n");
     char artist[1024];
     printf("Artist: ");
     fgets(artist, 1024, stdin);
@@ -97,7 +125,7 @@ static void on_login(sp_session *session, sp_error error)
    }
 
    g_logged_in = 1;
-   run_search(session);
+   //run_search(session);
 }
 
 static int on_music_delivered(sp_session *session, const sp_audioformat *format, const void *frames, int num_frames)
@@ -152,8 +180,9 @@ static void on_end_of_track(sp_session *session)
 {
    debug("callback: on_end_of_track");
    audio_fifo_flush(&g_audiofifo);
-   printf("Done. \n");
-   exit(0);
+    sp_session_player_play(session, 0);
+    sp_session_player_unload(session);
+   globPlaying = 0;
 }
 
 static sp_session_callbacks session_callbacks = {
@@ -193,14 +222,58 @@ int logIn(void)
    g_logged_in = 0;
    sp_session_login(session, username, password, 0, NULL);
 
-   //this is a bad way of doing the loop
-   while (1) {
-      sp_session_process_events(session, &next_timeout);
-      //usleep(next_timeout * 10);
-  }
-
+   handler(session);
    printf("success!\n");
    return 0;
+}
+
+int handler(sp_session *session)
+{
+   int next_timeout = 0;
+   int selection;
+   globPlaying = 0;
+   selection = menu();
+   if(selection == 0)
+   {
+       printf("Exiting\n");
+       exit(0);
+   }
+    while(1) {
+	sp_session_process_events(session, &next_timeout);
+
+	if(!globPlaying)
+	{
+	    if(selection == 1)
+	    { 
+		run_search(session);
+		globPlaying = 1;
+	    }else if(selection == 2) {
+		printf("playlist play");
+	    } else if(selection == 3) {
+    	
+	    } else {
+		printf("\nerror: illegal menu choice\n");
+		handler(session);
+	    }
+	}
+    }
+}
+
+int menu(void)
+{
+    int selected;
+    printf("\n--Menu--\n");
+    printf("0: exit\n");
+    printf("1: search\n");
+    printf("2: play playlist (not implemented) \n");
+    printf("3: list playlists (not implemented) \n");
+    char input[100];
+    fputs("> ", stdout);
+    fgets(input, sizeof(input) - 1, stdin);
+    sscanf(input, "%d", &selected);
+    printf("selected: %d\n", selected);
+
+    return selected;
 }
 
 int main(void)
