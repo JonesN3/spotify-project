@@ -15,6 +15,13 @@ extern const char *username;
 extern const char *password;
 
 static audio_fifo_t g_audiofifo;
+int selectedOpt;
+
+sp_session *globalSession;
+
+//function definition
+int startMenu();
+int runProcess(sp_session *session);
 
 
 #define DEBUG 1
@@ -38,9 +45,15 @@ void play(sp_session *session, sp_track *track)
         fprintf(stderr, "Error: %s\n", sp_error_message(error));
         exit(1);
     }
- 
+    
+    sp_artist *artist = sp_track_artist(track, 0);
+    const char *trackName = sp_track_name(track);
+
+   printf("\n");
+    printf(" Track: %s\n", sp_track_name(track));
+    printf(" Artist: %s\n", sp_artist_name(artist));
     printf("\n");
-    printf("Playing...\n");
+    printf("Playing '%s' by '%s' \n", sp_track_name(track), sp_artist_name(artist));
  
     sp_session_player_play(session, 1);
 }
@@ -97,7 +110,12 @@ static void on_login(sp_session *session, sp_error error)
    }
 
    g_logged_in = 1;
-   run_search(session);
+   if(selectedOpt == 1) run_search(session);
+   else 
+   {
+      printf("invalid option\n");
+      redo();
+   }
 }
 
 static int on_music_delivered(sp_session *session, const sp_audioformat *format, const void *frames, int num_frames)
@@ -152,8 +170,9 @@ static void on_end_of_track(sp_session *session)
 {
    debug("callback: on_end_of_track");
    audio_fifo_flush(&g_audiofifo);
-   printf("Done. \n");
-   exit(0);
+   run_search(session);
+   //printf("Done. \n");
+   //exit(0);
 }
 
 static sp_session_callbacks session_callbacks = {
@@ -175,7 +194,7 @@ static sp_session_config spconfig = {
    NULL
 };
 
-int logIn(void)
+int logInAndStart(void)
 {
    sp_error error;
    sp_session *session;
@@ -192,23 +211,64 @@ int logIn(void)
 
    g_logged_in = 0;
    sp_session_login(session, username, password, 0, NULL);
-
+   printf("logged in as: %s\n", username);
+   startMenu();
+   //runProcess(session);
    //this is a bad way of doing the loop
    while (1) {
       sp_session_process_events(session, &next_timeout);
-      //usleep(next_timeout * 10);
   }
+   return 0;
+}
 
-   printf("success!\n");
+int runProcess(sp_session *session)
+{
+   int next_timeout = 0;
+   startMenu();
+   while(1)
+   {
+      sp_session_process_events(globalSession, &next_timeout);
+   }
+
+}
+
+int redo(sp_session *session)
+{
+   char input[10];
+   printf("do you want to go again?\n");
+   fgets(input, 3, stdin);
+   if(strcmp("y\n", input) == 0)
+   {
+      printf("redo!\n");
+      runProcess(session);
+   }
+   else
+   {
+      startMenu();   
+   }
+   return 0;
+}
+
+int startMenu(void)
+{
+   printf("--Menu--\n 0: exit\n 1: search\n" 
+   " 2: list playlists\n 3: play playlist \n");
+
+   char input [100];
+   memset(input, 0, 100);
+   fgets(input, 100, stdin);
+   sscanf(input, "%d", &selectedOpt); 
+   printf("Selected Option: %d\n", selectedOpt);
+
+   if(selectedOpt == 0) printf("exiting"); exit(1);
    return 0;
 }
 
 int main(void)
 {
    printf("hello spotify!\n");
-   printf("username: %s\n", username);
    audio_init(&g_audiofifo);
-   logIn();
+   logInAndStart();
    return 0;
 }
 
