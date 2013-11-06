@@ -4,7 +4,7 @@ CFLAGS  := -g -Wall `pkg-config --cflags $(PKGS)`
 LIBS    := `pkg-config --libs $(PKGS)` -lpthread
 
 TARGET	:= spot
-SOURCES := $(shell find src/ -type f -name *.c)
+SOURCES := $(wildcard  src/*.c)
 OBJECTS := $(patsubst src/%,build/%,$(SOURCES:.c=.o))
 DEPS	:= $(OBJECTS:.o=.deps)
 
