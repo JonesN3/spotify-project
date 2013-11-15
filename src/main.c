@@ -44,9 +44,12 @@ void playlistPlayer(void)
 	printf("playlist player\n");
 	sp_track *playTrack;
 
-	if(sp_playlist_num_tracks(g_selectedList) < g_trackIndex) {
+	printf("song nr: %d of %d \n", g_trackIndex, sp_playlist_num_tracks(g_selectedList)-1);
+	if(sp_playlist_num_tracks(g_selectedList)-1 < g_trackIndex) {
 		printf("no more tracks in playlist\n");
 		globPlaying = 0;
+		g_selectedList == NULL;
+		return;
 	}
 	
 	playTrack = sp_playlist_track(g_selectedList, g_trackIndex);
@@ -361,12 +364,13 @@ int handler(sp_session *session)
 				globPlaying = 1;
 				playthatlist();
 				printf("index: %d\n", g_trackIndex);
-				g_trackIndex = 1;
+				++g_trackIndex;
 			} else {
 				printf("\nerror: illegal menu choice\n");
 				handler(session);
 			}
-			selection = 5;
+			selection = -1;
+			if(g_selectedList != NULL) selection = 5;
 		}
 	}
 }
