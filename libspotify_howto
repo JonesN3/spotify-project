@@ -1,0 +1,21 @@
+This program depends on libspotify. Download it from here:
+   'https://developer.spotify.com/technologies/libspotify/#download'. 
+
+You may encouter problems when building saying something like this:
+   Package libspotify was not found in the pkg-config search path.
+   Perhaps you should add the directory containing `libspotify.pc'
+   to the PKG_CONFIG_PATH environment variable
+   No package 'libspotify' found
+
+If you installed libspotify without any parameters, the location of the package should be:
+   '/usr/local/lib/pkgconfig/libspotify.pc'
+
+The following bash-command will enable your system to finding the package:
+   'export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/'
+
+Alterativly, if for example you dont have root access and installed libspotify somewhere in your homefolder,
+you have to give that path instead. Lets say you installed it to a folder named local under your homefolder.
+   'export PKG_CONFIG_PATH=$HOME/local/lib/pkgconfig/' 
+
+You may also have to this, if you installed outside of root-directory, again this example is local in the homefolder:
+   'export LD_LIBRARY_PATH=$HOME/local/lib'
