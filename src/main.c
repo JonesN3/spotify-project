@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <alloca.h> //??
+#include <assert.h>
 
 #include "audio.h"
 #include "queue.h"
@@ -27,6 +28,8 @@ sp_session *g_session;
 sp_playlist *g_selectedList;
 int g_trackIndex;
 int g_menuChoice;
+int g_shuffleMode;
+sp_playlist **g_playlistArray;
 
 void debug(const char *format, ...)
 {
@@ -45,7 +48,7 @@ void playShell()
    printf("play shell"); 
    fputs("\n>", stdout);
    fgets(input, sizeof(input), stdin);
-   
+
    if(strcmp(input, "exit\n") == 0) quit();
    if(strcmp(input, "next\n") == 0) playlistGoNext();
    if(strcmp(input, "stop\n") == 0) endPlayer();
@@ -63,8 +66,8 @@ void play(sp_session *session, sp_track *track)
    sp_album *album = sp_track_album(track);
    int duration = sp_track_duration(track);
 
-   printf("Plying track\n");
    printf("\n");
+   if(g_selectedList != NULL) printf("Playlist: %s\n", sp_playlist_name(g_selectedList));
    printf("%s\n", sp_artist_name(artist));
    printf("%s\n", sp_track_name(track));
    printf("%s\n", sp_album_name(album));
@@ -228,7 +231,6 @@ int printPlaylists(sp_session *g_session)
    }
 
    g_menuChoice = -1;
-   handler(g_session);
    return 0;
 }
 
@@ -242,7 +244,7 @@ int testPlaylistPlay(sp_session *g_session, int playlistIndex)
    if(!sp_playlist_is_loaded(playlist)){
       printf("playlist is not loaded\n");
       return 0;
-      }
+   }
    if(sp_playlist_is_loaded(playlist)) {
       printf("\nplaylist is loaded\n");
    }
@@ -261,8 +263,37 @@ void loadPlaylist(int index)
    g_selectedList = sp_playlistcontainer_playlist(pc, index);
 }
 
+void shuffleList(void) {
+   printf("errry i'm shuffeling\n");
+   sp_track *shuffled [sp_playlist_num_tracks(g_selectedList)];
+   sp_track *tmp;
+   int length = sizeof(g_playlistArray) / sizeof(g_playlistArray[0]);
+   printf("length: %d\n", length);
+   
+   int random;
+   int i;
+   for(i = sizeof(g_playlistArray); i > 0; --i) {
+      random = rand() % length;
+      tmp = g_playlistArray[i];
+      g_playlistArray[i] = g_playlistArray[random];
+      g_playlistArray[random] = tmp;
+   }
+}
+
+sp_track ** createPlaylistArray() {
+   int i;   
+   sp_track *plTracks[sp_playlist_num_tracks(g_selectedList)];
+
+   for(i = 0; i < sp_playlist_num_tracks(g_selectedList); ++i) {
+      plTracks[i] = sp_playlist_track(g_selectedList, i); 
+   }
+
+   return plTracks;
+}
+
 void playthatlist() {
    printf("Play that playlist!\n");
+   int *shuffledArray = NULL;
    int index;
    char input [1000];
 
@@ -272,15 +303,22 @@ void playthatlist() {
       sscanf(input, "%d", &index);
       loadPlaylist(index);
       g_trackIndex = 0;
+      g_playlistArray = createPlaylistArray();
+      if(g_shuffleMode) shuffleList();
    }
+
    if(sp_playlist_num_tracks(g_selectedList)-1 < g_trackIndex) {
       printf("no more tracks in playlist\n");
       endPlayer();
       return;
    }
-   play(g_session, sp_playlist_track(g_selectedList, g_trackIndex));
+
+   play(g_session, g_playlistArray[g_trackIndex]);
    ++g_trackIndex;
 }
+
+
+
 
 void playlistGoNext() {
    ++g_trackIndex;
@@ -293,10 +331,13 @@ void playlistGoNext() {
 }
 
 void endPlayer() {
-      g_selectedList == NULL;
-      g_trackIndex = 0;
-      g_menuChoice = -1;
-      on_end_of_track(g_session);
+   printf("end player\n");
+   g_selectedList = NULL;
+   g_playlistArray = NULL;
+   g_trackIndex = 0;
+   g_shuffleMode = 0;
+   g_menuChoice = -1;
+   on_end_of_track(g_session);
 }
 
 
@@ -319,8 +360,6 @@ void listSongsInPlaylist(sp_session *session, int index)
    }
 
    g_menuChoice = -1;
-   handler(session);
-
 }
 
 int logIn(void)
@@ -354,7 +393,7 @@ void quit(void)
 
 int handler(sp_session *session)
 {
-   printf("\n Handler \n");
+   printf("\nHandler \n");
    int next_timeout = 0;
    int index;
    int selection = 0;
@@ -365,14 +404,15 @@ int handler(sp_session *session)
    if(g_menuChoice == -1 || g_menuChoice == 9) selection = menu();
    g_menuChoice = selection;
    if(selection == 0) quit();
+
    while(1) {
-   rwegiannorwegian
       sp_session_process_events(session, &next_timeout);
 
       if(!globPlaying)
       {
 	 if(selection == -1) handler(session);
 	 if(g_menuChoice == -1 || g_menuChoice == 9) handler(session);
+
 	 if(selection == 1)
 	 { 
 	    run_search(session);
@@ -380,7 +420,6 @@ int handler(sp_session *session)
 	 }else if(selection == 2) {
 	    printf("playlist play test");
 	    testPlaylistPlay(session, 0);
-	    //globPlaying = 1;
 	 } else if(selection == 3) {
 	    printPlaylists(g_session);
 	 } else if(selection == 4) {
@@ -390,14 +429,17 @@ int handler(sp_session *session)
 	    listSongsInPlaylist(session, index);
 	 } else if(selection == 5) {
 	    playthatlist();
+	 } else if(selection == 6) {
+	    g_shuffleMode = 1;
+	    playthatlist();
 	 } else {
 	    printf("\nerror: illegal menu choice\n");
-	    handler(session);
+	    g_menuChoice = 9;
 	 }
+      } else {
+	 usleep(4000);
+	 playShell();
       }
-      usleep(4000);
-	// playShell();
-	//
    }
 }
 
