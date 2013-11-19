@@ -29,6 +29,8 @@ sp_playlist *g_selectedList;
 int g_trackIndex;
 int g_menuChoice;
 int g_shuffleMode;
+int g_shuffleMode2;
+int *g_shuffleArray;
 sp_playlist **g_playlistArray;
 
 void debug(const char *format, ...)
@@ -67,6 +69,8 @@ void play(sp_session *session, sp_track *track)
    int duration = sp_track_duration(track);
 
    printf("\n");
+   printf("%d\n", g_trackIndex);
+   printf("%d\n", g_shuffleArray[g_trackIndex]);
    if(g_selectedList != NULL) printf("Playlist: %s\n", sp_playlist_name(g_selectedList));
    printf("%s\n", sp_artist_name(artist));
    printf("%s\n", sp_track_name(track));
@@ -189,6 +193,7 @@ static void on_end_of_track(sp_session *session)
    audio_fifo_flush(&g_audiofifo);
    sp_session_player_play(session, 0);
    sp_session_player_unload(session);
+   g_trackIndex++;
    globPlaying = 0;
    //handler(session); //is this right ?
 }
@@ -267,6 +272,7 @@ void shuffleList(void) {
    printf("errry i'm shuffeling\n");
    sp_track *shuffled [sp_playlist_num_tracks(g_selectedList)];
    sp_track *tmp;
+
    int length = sizeof(g_playlistArray) / sizeof(g_playlistArray[0]);
    printf("length: %d\n", length);
    
@@ -278,6 +284,37 @@ void shuffleList(void) {
       g_playlistArray[i] = g_playlistArray[random];
       g_playlistArray[random] = tmp;
    }
+}
+
+   
+void shuffleNumber(void) {
+   if(!g_shuffleMode2) loadPlaylist(4);
+   //empty number array
+   int size = sp_playlist_num_tracks(g_selectedList);
+   int i, random, tmp;
+   int ascending[size];
+   int shuffled[size];
+   for(i = 0; i < size; ++i) {
+     ascending[i] = i; 
+     printf("ascending[%d] = %d \n",i, ascending[i]);
+   }
+
+   //shuffle the numbers
+   for(i = size; i > 0; i--) {
+      random = rand() % size;
+      printf("random = %d\n", random);
+      tmp = ascending[i];
+      ascending[i] = ascending[random];
+      ascending[random] = tmp;
+   }
+
+   for(i = 0; i < size; i++) {
+      printf("shuffled[%d] = %d\n",i, ascending[i]);
+   }
+   if(!g_shuffleMode2) g_menuChoice = -1;
+   g_shuffleArray = ascending;
+
+   printf("done shuffleing\n");
 }
 
 sp_track ** createPlaylistArray() {
@@ -305,16 +342,18 @@ void playthatlist() {
       g_trackIndex = 0;
       g_playlistArray = createPlaylistArray();
       if(g_shuffleMode) shuffleList();
+      if(g_shuffleMode2) shuffleNumber();
    }
-
+   
    if(sp_playlist_num_tracks(g_selectedList)-1 < g_trackIndex) {
       printf("no more tracks in playlist\n");
       endPlayer();
       return;
    }
-
-   play(g_session, g_playlistArray[g_trackIndex]);
-   ++g_trackIndex;
+   if(g_shuffleMode2) play(g_session, sp_playlist_track(g_selectedList, g_shuffleArray[g_trackIndex]));
+   else play(g_session, sp_playlist_track(g_selectedList, g_trackIndex));
+   //play(g_session, g_playlistArray[g_trackIndex]);
+   //++g_trackIndex;
 }
 
 
@@ -322,12 +361,14 @@ void playthatlist() {
 
 void playlistGoNext() {
    ++g_trackIndex;
-   if(sp_playlist_num_tracks(g_selectedList)-1 < g_trackIndex) {
+   if(sp_playlist_num_tracks(g_selectedList) -1 < g_trackIndex) {
       printf("end of list!\n");
       endPlayer();
       return;
    }
-   play(g_session, sp_playlist_track(g_selectedList, g_trackIndex));
+   if(g_shuffleMode2) play(g_session, sp_playlist_track(g_selectedList, g_shuffleArray[g_trackIndex]));
+   else play(g_session, sp_playlist_track(g_selectedList, g_trackIndex));
+   //play(g_session, g_playlistArray[g_trackIndex]);
 }
 
 void endPlayer() {
@@ -431,6 +472,13 @@ int handler(sp_session *session)
 	    playthatlist();
 	 } else if(selection == 6) {
 	    g_shuffleMode = 1;
+	    playthatlist();
+   	 } else if(selection == 7) {
+	    printf("test shuffle");
+	    shuffleNumber();
+	 } else if(selection == 8) {
+	    printf("test shuffle2");
+	    g_shuffleMode2 = 1;
 	    playthatlist();
 	 } else {
 	    printf("\nerror: illegal menu choice\n");
