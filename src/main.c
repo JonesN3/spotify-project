@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <alloca.h> //??
 #include <assert.h>
+#include <signal.h>
+#include <sys/ioctl.h>
 
 #include "audio.h"
 #include "queue.h"
@@ -31,6 +33,8 @@ int g_menuChoice;
 int g_shuffleMode;
 int g_shuffleMode2;
 int *g_shuffleArray;
+int g_playbackOn;
+pid_t pid;
 sp_playlist **g_playlistArray;
 
 void debug(const char *format, ...)
@@ -48,54 +52,98 @@ void playShell()
 {
    char input [1000];
    printf("play shell"); 
+
+   while(g_playbackOn) {
+   printf("%d\n", g_playbackOn);
    fputs("\n>", stdout);
    fgets(input, sizeof(input), stdin);
 
    if(strcmp(input, "exit\n") == 0) quit();
    if(strcmp(input, "next\n") == 0) playlistGoNext();
    if(strcmp(input, "stop\n") == 0) endPlayer();
+   if(strcmp(input, "shell\n") == 0) handler(g_session);
+   }
+   
+   return;
+}
+
+void printPlayInfo(sp_track *track)
+{
+      int columns = strtol(getenv("COLUMNS"), NULL, 10);
+      sp_artist *artist = sp_track_artist(track, 0);
+      sp_artist *artist2 = sp_track_artist(track, 1);
+      sp_album *album = sp_track_album(track);
+      int duration = sp_track_duration(track);
+      int allArtistsW;
+      const char *artist2Name;
+      char *allArtistName;
+
+	 
+      const char *trackName = sp_track_name(track);
+      const char *artistName = sp_artist_name(artist);
+      if(artist2 !=NULL) artist2Name = sp_artist_name(artist2);
+      const char *albumName = sp_album_name(album);
+
+      if(artist2 != NULL) {
+	 allArtistName = malloc(strlen(artistName) + strlen(artist2Name) + 3);
+	 strcpy(allArtistName, artistName);
+	 strcat(allArtistName, ", ");
+	 strcat(allArtistName, artist2Name);
+      }
+
+      int trackW = strlen(trackName) + (columns - strlen(trackName)) / 2;
+      int artistW = strlen(artistName) + (columns - strlen(artistName)) / 2;
+      if(artist2 != NULL) allArtistsW = strlen(allArtistName) + (columns - strlen(allArtistName)) / 2;
+      int albumW = strlen(albumName) + (columns - strlen(albumName)) / 2;
+
+      printf("\n\n");
+      if(g_selectedList != NULL) printf("Playlist: %s\n", sp_playlist_name(g_selectedList));
+      if(artist2 != NULL) printf("%*s\n", allArtistsW, allArtistName);
+      else printf("%*s\n", artistW, artistName);
+      printf("%*s\n",trackW, trackName);
+      printf("%*s\n", albumW, albumName);
+      //printf("[%d:%d]\n", duration/60000, (duration/1000) % 60);
+      printf("\n\n");
+
+
 }
 
 void play(sp_session *session, sp_track *track)
 {
-   sp_error error = sp_session_player_load(session, track);
-   if (error != SP_ERROR_OK) {
-      fprintf(stderr, "Error: %s\n", sp_error_message(error));
-      exit(1);
-   }
 
-   sp_artist *artist = sp_track_artist(track, 0);
-   sp_album *album = sp_track_album(track);
-   int duration = sp_track_duration(track);
+   g_playbackOn = 1;
 
-   printf("\n");
-   printf("%d\n", g_trackIndex);
-   printf("%d\n", g_shuffleArray[g_trackIndex]);
-   if(g_selectedList != NULL) printf("Playlist: %s\n", sp_playlist_name(g_selectedList));
-   printf("%s\n", sp_artist_name(artist));
-   printf("%s\n", sp_track_name(track));
-   printf("%s\n", sp_album_name(album));
-   printf("[%d:%d]\n", duration/60000, (duration/1000) % 60);
-   printf("\n\n");
-   globPlaying = 1;
-   sp_session_player_play(session, 1);
+     sp_error error = sp_session_player_load(session, track);
+     if (error != SP_ERROR_OK) {
+	fprintf(stderr, "\nError: %s\n", sp_error_message(error));
+	printf("track: %s, artist: %s\n", sp_track_name(track), sp_artist_name(sp_track_artist(track, 0)));
+	printf("playing next song...\n\n");
+	sp_session_player_unload(session);
+	 playlistGoNext();
+	 return;
+      }
+
+      globPlaying = 1;
+      sp_session_player_play(session, 1);
+      printPlayInfo(track);
+      return;
 }
 
 static void on_search_complete(sp_search *search, void *userdata)
 {
+   g_menuChoice = -1;
    debug("callback: on_search_complete");
    sp_error error = sp_search_error(search);
    if (error != SP_ERROR_OK) {
       fprintf(stderr, "Error: %s\n", sp_error_message(error));
-      exit(1);
+      return;
    }
 
    int num_tracks = sp_search_num_tracks(search);
    if (num_tracks == 0) {
       printf("\nSorry, couldn't find that track.\n");
       globPlaying = 0;
-      handler((sp_session*)userdata);
-      exit(0);
+      return;
    }
 
    printf("Found track!\n");
@@ -192,9 +240,10 @@ static void on_end_of_track(sp_session *session)
    debug("callback: on_end_of_track\n");
    audio_fifo_flush(&g_audiofifo);
    sp_session_player_play(session, 0);
-   sp_session_player_unload(session);
    g_trackIndex++;
    globPlaying = 0;
+   g_playbackOn = 0;
+   printf("END OF TRACK : %d", g_playbackOn);
    //handler(session); //is this right ?
 }
 
@@ -485,8 +534,8 @@ int handler(sp_session *session)
 	    g_menuChoice = 9;
 	 }
       } else {
-	 usleep(4000);
-	 playShell();
+	 //usleep(4000);
+	 //if(g_playbackOn == 1) playShell();
       }
    }
 }
@@ -519,6 +568,7 @@ int main(void)
    printf("username: %s\n", username);
    audio_init(&g_audiofifo);
    g_menuChoice = 9;
+   g_playbackOn = 0;
    logIn();
    return 0;
 }
