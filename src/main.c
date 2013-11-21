@@ -69,20 +69,23 @@ void playShell()
 
 void printPlayInfo(sp_track *track)
 {
-      int columns = strtol(getenv("COLUMNS"), NULL, 10);
+
       sp_artist *artist = sp_track_artist(track, 0);
       sp_artist *artist2 = sp_track_artist(track, 1);
       sp_album *album = sp_track_album(track);
       int duration = sp_track_duration(track);
-      int allArtistsW;
+      int allArtistsW, playlistW;
       const char *artist2Name;
+      const char *playlistName;
       char *allArtistName;
+      char *columnsVar = getenv("COLUMNS");
 
 	 
       const char *trackName = sp_track_name(track);
       const char *artistName = sp_artist_name(artist);
       if(artist2 !=NULL) artist2Name = sp_artist_name(artist2);
       const char *albumName = sp_album_name(album);
+      if(g_selectedList != NULL) playlistName = sp_playlist_name(g_selectedList);
 
       if(artist2 != NULL) {
 	 allArtistName = malloc(strlen(artistName) + strlen(artist2Name) + 3);
@@ -90,22 +93,65 @@ void printPlayInfo(sp_track *track)
 	 strcat(allArtistName, ", ");
 	 strcat(allArtistName, artist2Name);
       }
+      
+      if(columnsVar != NULL) {
 
+      int columns = strtol(getenv("COLUMNS"), NULL, 10);
       int trackW = strlen(trackName) + (columns - strlen(trackName)) / 2;
       int artistW = strlen(artistName) + (columns - strlen(artistName)) / 2;
       if(artist2 != NULL) allArtistsW = strlen(allArtistName) + (columns - strlen(allArtistName)) / 2;
       int albumW = strlen(albumName) + (columns - strlen(albumName)) / 2;
+      int headW = strlen("-Playing-") + (columns - strlen("-Playing-")) / 2;
+      if(g_selectedList != NULL)  playlistW = strlen(playlistName) + (columns - strlen(playlistName)) / 2;
 
       printf("\n\n");
-      if(g_selectedList != NULL) printf("Playlist: %s\n", sp_playlist_name(g_selectedList));
+      printf("%*s\n", headW, "-Playing-");
+      if(g_selectedList != NULL) printf("%*s\n", playlistW, playlistName);
+      printf("\n");
       if(artist2 != NULL) printf("%*s\n", allArtistsW, allArtistName);
       else printf("%*s\n", artistW, artistName);
       printf("%*s\n",trackW, trackName);
       printf("%*s\n", albumW, albumName);
-      //printf("[%d:%d]\n", duration/60000, (duration/1000) % 60);
-      printf("\n\n");
+      }
+}
+
+void playProgress(sp_track *track)
+{
+   //just for fun, doesnt really work, but can give an estiamte
+   int i;
+   int duration = sp_track_duration(track);
+   int columns = strtol(getenv("COLUMNS"), NULL, 10);
+   int pos;
+   char playtime [50];
+   duration = duration / 1000;
+   int dSecs, dMins, iSecs, iMins;
+   dMins = iMins = 0;
+   iSecs = 1;
+
+   dSecs = duration;
+   
+   while(dSecs >= 60) {
+      dSecs = dSecs - 60;
+      dMins++;
+   }
 
 
+   for(i = 1; i <= duration; i++) {
+      fflush(stdout);
+      usleep(1000000);
+      if(g_playbackOn != 1) return;
+      iSecs++;
+      while(iSecs >= 60) {
+	    iSecs = iSecs - 60;
+	    iMins++; 
+      }
+      sprintf(playtime, "[%02d:%02d | %02d:%02d]\r", iMins, iSecs, dMins, dSecs);
+      pos = strlen(playtime) + (columns - strlen(playtime)+1) / 2;
+      printf("%*s\r", pos, playtime);
+      fflush(stdout);
+   }
+   printf("\n");
+   return;
 }
 
 void play(sp_session *session, sp_track *track)
@@ -126,7 +172,7 @@ void play(sp_session *session, sp_track *track)
       globPlaying = 1;
       sp_session_player_play(session, 1);
       printPlayInfo(track);
-      return;
+      playProgress(track);
 }
 
 static void on_search_complete(sp_search *search, void *userdata)
@@ -536,6 +582,10 @@ int handler(sp_session *session)
       } else {
 	 //usleep(4000);
 	 //if(g_playbackOn == 1) playShell();
+	 while(g_playbackOn == 1) {
+
+
+	 }
       }
    }
 }
