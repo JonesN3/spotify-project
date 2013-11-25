@@ -1,4 +1,3 @@
-//contains all info needed to connect to spotify;
 #include <stdint.h>
 #include <stdlib.h>
 const uint8_t g_appkey[] = {
@@ -25,5 +24,3 @@ const uint8_t g_appkey[] = {
    0xD0,
 };
 const size_t g_appkey_size = sizeof(g_appkey);
-const char *username = "jonesn3";
-const char *password = "hippo24#";
