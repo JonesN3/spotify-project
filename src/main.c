@@ -15,8 +15,11 @@
 
 extern const uint8_t g_appkey[];
 extern const size_t g_appkey_size;
-extern const char *username;
-extern const char *password;
+extern const char *usernameExt;
+extern const char *passwordExt;
+
+char *username;
+char *password;
 
 static audio_fifo_t g_audiofifo;
 static int globPlaying;
@@ -621,10 +624,28 @@ int menu(void)
    return selected;
 }
 
+void getUserInfo(void)
+{
+    char *inputU = malloc(sizeof(char)*30);
+    char *inputP = malloc(sizeof(char)*30);
+    fgets(inputU, 30, stdin);
+    fgets(inputP, 30, stdin);
+
+    username = strtok(inputU, "\n");
+    password = strtok(inputP, "\n");
+}
+
 int main(void)
 {
+    username = malloc(sizeof(char)*30);
+    password = malloc(sizeof(char)*30);
+    //username = "nil\n";
+    //password = "nil\n";
    printf("hello spotify!\n");
    printf("username: %s\n", username);
+    getUserInfo();
+   printf("username: %s\n", username);
+   printf("password: %s\n", password);
    audio_init(&g_audiofifo);
    g_menuChoice = 9;
    g_playbackOn = 0;

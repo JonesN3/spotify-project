@@ -13,8 +13,7 @@ If you installed libspotify without any parameters, the location of the package 
 The following bash-command will enable your system to finding the package:
    'export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/'
 
-Alterativly, if for example you dont have root access and installed libspotify somewhere in your homefolder,
-you have to give that path instead. Lets say you installed it to a folder named local under your homefolder.
+Alterativly, if for example you dont have root access and installed libspotify somewhere in your homefolder,you have to give that path instead. Lets say you installed it to a folder named local under your homefolder.
    'export PKG_CONFIG_PATH=$HOME/local/lib/pkgconfig/' 
 
 You may also have to this, if you installed outside of root-directory, again this example is local in the homefolder:
