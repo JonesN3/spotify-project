@@ -88,7 +88,6 @@ void printPlayInfo(sp_track *track)
 	char *allArtistName;
 	char *columnsVar = getenv("COLUMNS");
 
-
 	const char *trackName = sp_track_name(track);
 	const char *artistName = sp_artist_name(artist);
 	if(artist2 !=NULL) artist2Name = sp_artist_name(artist2);
