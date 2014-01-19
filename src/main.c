@@ -171,7 +171,6 @@ void play(sp_session *session, sp_track *track)
    sp_error error = sp_session_player_load(session, track);
    if (error != SP_ERROR_OK) {
       fprintf(stderr, "\nError: %s\n", sp_error_message(error));
-      printf("%s", error);
       ////printf("track: %s, artist: %s\n", sp_track_name(track), sp_artist_name(sp_track_artist(track, 0)));
       sp_session_player_unload(session);
       if (g_selectedList != NULL){ playlistGoNext(); printf("playing next song...\n\n");}
@@ -292,13 +291,11 @@ static void on_log(sp_session *session, const char *data)
 
 static void on_end_of_track(sp_session *session)
 {
-   debug("callback: on_end_of_track\n");
    audio_fifo_flush(&g_audiofifo);
    sp_session_player_play(session, 0);
    g_trackIndex++;
    globPlaying = 0;
    g_playbackOn = 0;
-   printf("END OF TRACK : %d", g_playbackOn);
    //handler(session); //is this right ?
 }
 
@@ -393,36 +390,31 @@ void shuffleList(void) {
 
 void shuffleNumber(void) {
    if(!g_shuffleMode2) loadPlaylist(4);
-   //empty number array
    int size = sp_playlist_num_tracks(g_selectedList);
    if(g_selectedList != NULL) printf("%s", sp_playlist_name(g_selectedList));
-   printf("size: %d\n", size);
    int i = 0, random, tmp;
    int ascending[size];
    int shuffled[size];
+
+	g_shuffleArray = malloc(size * sizeof(int));	
+
    for(i = 0; i < size; ++i) {
       ascending[i] = i; 
-      printf("ascending[%d] = %d \n",i, ascending[i]);
    }
 
    //shuffle the numbers
    for(i = size-1; i > 0; i--) {
       random = rand() % size;
-      printf("random = %d\n", random);
       tmp = ascending[i];
-      printf(" tmp: %d \n ascending[%d]: %d ", tmp, i, ascending[i]);
       ascending[i] = ascending[random];
       ascending[random] = tmp;
    }
 
    for(i = 0; i < size; i++) {
       printf("shuffled[%d] = %d\n",i, ascending[i]);
+	g_shuffleArray[i] = ascending[i];
    }
    if(!g_shuffleMode2) g_menuChoice = -1;
-   g_shuffleArray = ascending;
-   printf("g_shuffleArray: %d", g_shuffleArray[0]);
-
-   printf("done shuffleing\n");
 }
 
 sp_track ** createPlaylistArray() {
@@ -438,12 +430,10 @@ sp_track ** createPlaylistArray() {
 
 void playthatlist() {
    printf("\nPlay that playlist!\n");
-   //int *shuffledArray = NULL;
+   int *shuffledArray = NULL;
    int index;
    char input [1000];
 
-   printf("hmmm");
-   fprintf(stderr, "test ONE");
    if(g_selectedList == NULL) {
        printf("SelectedList == NULL\n");
       fputs("Playlist number: ", stdout);
@@ -458,9 +448,6 @@ void playthatlist() {
 	 printf("SN: %d\n", g_shuffleArray[0]);
       }
    }
-   
-  printf("hello"); 
-   printf("Track index: %d", g_trackIndex);
 
    if(sp_playlist_num_tracks(g_selectedList)-1 < g_trackIndex) {
       printf("no more tracks in playlist\n");
@@ -468,13 +455,10 @@ void playthatlist() {
       return;
    }
    if(g_shuffleMode2) { 
-       printf("play track nr.%d", g_trackIndex);
       play(g_session, sp_playlist_track(g_selectedList, g_shuffleArray[g_trackIndex]));
    }
    else 
       play(g_session, sp_playlist_track(g_selectedList, g_trackIndex));
-   //play(g_session, sp_playlist_track(g_selectedList, g_trackIndex));
-   //play(g_session, g_playlistArray[g_trackIndex]);
 }
 
 
@@ -482,7 +466,7 @@ void playthatlist() {
 
 void playlistGoNext() {
     printf("playlist go next");
-   //++g_trackIndex;
+   ++g_trackIndex;
    if(sp_playlist_num_tracks(g_selectedList) -1 < g_trackIndex) {
       printf("end of list!\n");
       endPlayer();
