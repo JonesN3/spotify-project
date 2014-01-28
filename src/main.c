@@ -53,7 +53,7 @@ void debug(const char *format, ...)
 }
 
 void intHandler(int sig) {
-	quit();
+    endPlayer();
 }
 
 void playShell()

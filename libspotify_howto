@@ -1,11 +1,13 @@
 This program depends on libspotify. Download it from here:
-   'https://developer.spotify.com/technologies/libspotify/#download'. 
+   'https://developer.spotify.com/technologies/libspotify/#download'.
 
 You may encouter problems when building saying something like this:
    Package libspotify was not found in the pkg-config search path.
    Perhaps you should add the directory containing `libspotify.pc'
    to the PKG_CONFIG_PATH environment variable
    No package 'libspotify' found
+
+it also requrire libasound. (libasound2-dev is the package name on debaian/ubuntu).
 
 If you installed libspotify without any parameters, the location of the package should be:
    '/usr/local/lib/pkgconfig/libspotify.pc'
